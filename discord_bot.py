@@ -248,7 +248,7 @@ class Verifier_Model(ui.View):
                 return await self.user.send(content="Bir Hata Oluştu, Lütfen yeniden kayıt olunuz.")
             
             if pending_doc_dict["status"] == "0": #liseliyse
-                await self.user.edit(nick= pending_doc_dict["name"] + " | " + pending_doc_dict["number_class"])
+                await self.user.edit(nick= pending_doc_dict["name"] + " | " + "Lise")
 
                 if pending_doc_dict["name"] == "Mezun":
                     await self.user.add_roles(discord.utils.get(Client.get_guild(sunucu_id).roles, name="Mezun Senesi"))
@@ -274,6 +274,7 @@ class Verifier_Model(ui.View):
             await interaction.followup.send("Bunu yapabilecek yetkiniz yok.", ephemeral=True)
     
     async def button_handler_rejecter(self, interaction: discord.Interaction):
+        
         if bool(set([role.name for role in interaction.user.roles]).intersection(set(granted_users))):
             self.button_accept.disabled = True
             self.button_reject.disabled = True
@@ -281,7 +282,7 @@ class Verifier_Model(ui.View):
             db.collection('pending_collection').document(str(self.pending_user_id)).delete()
             return await interaction.response.send_modal(Rejecter_Model(self.pending_user_id, self.user, self))
         else:
-            await interaction.response.send_message(content="Bunu yapabilecek yetkiniz yok.", ephemeral=True)
+            await interaction.followup.send("Bunu yapabilecek yetkiniz yok.", ephemeral=True)
             
     async def button_handler_block(self, interaction: discord.Interaction):
         if bool(set([role.name for role in interaction.user.roles]).intersection(set(granted_users))):
@@ -291,7 +292,7 @@ class Verifier_Model(ui.View):
             db.collection('pending_collection').document(str(self.pending_user_id)).delete()
             return await interaction.response.send_modal(Block_Model(self.pending_user_id, self.user, self))
         else:
-            await interaction.response.send_message(content="Bunu yapabilecek yetkiniz yok.", ephemeral=True)
+            await interaction.followup.send("Bunu yapabilecek yetkiniz yok.", ephemeral=True)
 
 class Block_Model(ui.Modal):
     """
@@ -305,6 +306,9 @@ class Block_Model(ui.Modal):
     reason = ui.TextInput(label = "Engellenme Sebebi", style = discord.TextStyle.short, max_length=100,placeholder="Lütfen engellenme sebebini açıklayıcı olarak giriniz.")
     
     async def on_submit(self, interaction: discord.Interaction):
+
+        await interaction.response.defer()
+
         db.collection('block_collection').document(f'{self.rejected_user_id}').set({
             'name': str(self.rejected_user.name)[:100],
             'reason': str(self.reason)[:100]
@@ -312,7 +316,7 @@ class Block_Model(ui.Modal):
 
         await Client.get_guild(sunucu_id).get_member(self.rejected_user_id).send(content=f"Kaydınız engellendi. Engellenme sebebi: {str(self.reason)}")
         await register_status_channel.send(content=f"Kullanıcı: <@{self.rejected_user.id}> kaydı, <@{interaction.user.id}> tarafından engellendi. Sebebi: {self.reason}")
-        return await interaction.response.edit_message(content="Kullanıcı Engellendi. ",view=self.accepter_model)
+        return await interaction.edit_original_response(content="Kayıt Engellendi.", view=self.accepter_model)
 
 class Rejecter_Model(ui.Modal):
     """
@@ -326,9 +330,12 @@ class Rejecter_Model(ui.Modal):
     reason = ui.TextInput(label = "Reddedilme Sebebi", style = discord.TextStyle.short, max_length=100,placeholder="Lütfen reddedilme sebebini açıklayıcı olarak giriniz.")
 
     async def on_submit(self, interaction: discord.Interaction):
+
+        await interaction.response.defer()
+
         await Client.get_guild(sunucu_id).get_member(self.rejected_user_id).send(content=f"Kaydınız reddedildi. Reddedilme sebebi: {str(self.reason)}")
         await register_status_channel.send(content=f"Kullanıcı: <@{self.rejected_user.id}>, Kayıt Durumu: Başarısız, Sebebi: {self.reason}, İşlemi Yapan: <@{interaction.user.id}>")
-        return await interaction.response.edit_message(content="Kayıt Reddedildi. ",view=self.accepter_model)
+        return await interaction.edit_original_response(content="Kayıt Reddedildi.", view=self.accepter_model)
 
 @Client.tree.command(name="engelkaldir", description="Girilen IDye sahip kullanicinin kayit banini kaldirir.")
 async def engelkaldir(interaction: discord.Interaction, unblock_id: str):
