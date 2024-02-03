@@ -54,6 +54,8 @@ async def on_ready():
     
     messages = register_channel.history(limit=None)
     async for message in messages: await message.delete()
+    messages_tracked = tracked_channel.history(limit=None)
+    async for message_tracked in messages_tracked: await message_tracked.delete()
 
     embed = discord.Embed(color=discord.Color.random(),description="***Merhaba, Hoş geldin! Kayıt alma işlemleri otonom hâline getiriyoruz ve iyileştirmeler için üzerinde çalışıyoruz. Senden yapmanı istediğim tek şey adımları düzgün takip etmek olacak sadece bu kadar!***",title="```Unidisco Kayıt Botu v_0.0```")
     embed.add_field(name="`Nasıl Kayıt Olurum?`",value="***Lisans, önlisans öğrencileri için;***\n"
@@ -231,7 +233,9 @@ class Verifier_Model(ui.View):
         self.user = Client.get_guild(sunucu_id).get_member(self.pending_user_id)
 
     async def button_handler_accepter(self, interaction: discord.Interaction):
-
+        
+        await interaction.response.defer()
+        
         if bool(set([role.name for role in interaction.user.roles]).intersection(set(granted_users))):
             self.button_accept.disabled = True
             self.button_reject.disabled = True
@@ -257,7 +261,7 @@ class Verifier_Model(ui.View):
                 await self.user.edit(nick= pending_doc_dict["name"] + " | " + pending_doc_dict["dep_name"])
                 await self.user.remove_roles(discord.utils.get(Client.get_guild(sunucu_id).roles, name="Kayıtsız Öğrenci"))
                 
-                if pending_doc_dict["uni_name"] in str(Client.get_guild(sunucu_id).roles):
+                if pending_doc_dict["uni_name"] in university_roles:
                     await self.user.add_roles(discord.utils.get(Client.get_guild(sunucu_id).roles, name=pending_doc_dict["uni_name"]))
                 else:
                     await self.user.add_roles(discord.utils.get(Client.get_guild(sunucu_id).roles, name="Diğer Üniversiteler"))
@@ -265,9 +269,9 @@ class Verifier_Model(ui.View):
             await self.user.send(content="Kaydınız alınmıştır, keyifli sohbetler dileriz Sayın " + pending_doc_dict["name"])
             await register_status_channel.send(content=f"Kullanıcı: <@{self.user.id}>, Kayıt Durumu: Başarılı, Kaydı Yapan: <@{interaction.user.id}>")
             db.collection('pending_collection').document(str(self.pending_user_id)).delete()
-            return await interaction.response.edit_message(content="Kayıt Onaylandı. ",view=self)
+            return await interaction.edit_original_response(content="Kayıt Onaylandı.", view=self)
         else:
-            await interaction.response.send_message(content="Bunu yapabilecek yetkiniz yok.", ephemeral=True)
+            await interaction.followup.send("Bunu yapabilecek yetkiniz yok.", ephemeral=True)
     
     async def button_handler_rejecter(self, interaction: discord.Interaction):
         if bool(set([role.name for role in interaction.user.roles]).intersection(set(granted_users))):
